@@ -1,9 +1,10 @@
 {
   "name": "motor-navigatie-benelux",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "description": "Gratis Android motor navigatie Benelux",
   "scripts": {
+    "build": "node -e \"const fs=require('fs');fs.rmSync('www',{recursive:true,force:true});fs.mkdirSync('www',{recursive:true});for(const f of ['index.html','app.js','manifest.webmanifest','icon.svg'])fs.copyFileSync(f,'www/'+f);console.log('Webbestanden gekopieerd naar www/')\"",
     "web": "npx http-server www",
     "android:add": "npx cap add android",
     "android:sync": "npx cap sync android",
