@@ -39,6 +39,22 @@ jobs:
         run: npx cap add android
       - name: Synchroniseer Capacitor
         run: npx cap sync android
+      - name: Voeg expliciete Android GPS-machtigingen toe
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+          permissions = [
+              '    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />',
+              '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />',
+          ]
+          for item in permissions:
+              if item not in s:
+                  s = s.replace('<application', item + '\\n    <application', 1)
+          p.write_text(s)
+          print('GPS permissions added to', p)
+          PY
       - name: Bouw test-APK
         working-directory: android
         run: chmod +x gradlew && ./gradlew assembleDebug
