@@ -1,0 +1,52 @@
+name: Build Motor Navigatie Benelux APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'app.js'
+      - 'package.json'
+      - 'capacitor.config.json'
+      - '.github/workflows/android-apk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Haal project op
+        uses: actions/checkout@v4
+      - name: Installeer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Installeer Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Installeer projectpakketten
+        run: npm install
+      - name: Maak webmap www
+        run: npm run build
+      - name: Controleer webbestanden
+        run: test -s www/index.html && test -s www/app.js
+      - name: Voeg Android-platform toe
+        run: npx cap add android
+      - name: Synchroniseer Capacitor
+        run: npx cap sync android
+      - name: Bouw test-APK
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew assembleDebug
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MotorNavigatie-Benelux-v1.2-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
