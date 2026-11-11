@@ -1,23 +1,36 @@
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 const $=id=>document.getElementById(id);
 const map=L.map('map').setView([52.1,5.3],7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 let marker=null,routeLayer=null,watchId=null,current=null,routeCoords=[],cameraMarkers=[],cameras=[],fuelMarkers=[],fuelStations=[],fuelVisible=false,voiceOn=true,lastCameraAlert=0,routeSteps=[],nextStepIndex=0;
-function say(t){if(voiceOn&&'speechSynthesis'in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='nl-NL';speechSynthesis.speak(u);}}
+let selectedVoiceGender='auto',availableVoices=[];
+function classifyVoice(v){const n=(v.name+' '+v.voiceURI).toLowerCase();if(/female|vrouw|claire|lotte|fenna|sanne|eva|anna|emma|sara|google.*nl|nl-nl-x-.*#female/.test(n))return 'female';if(/male|man|xander|daan|peter|thomas|mark|nl-nl-x-.*#male/.test(n))return 'male';return 'unknown';}
+function refreshVoices(){if(!('speechSynthesis'in window))return;availableVoices=speechSynthesis.getVoices().filter(v=>!v.lang||v.lang.toLowerCase().startsWith('nl'));const sel=$('voiceGender');if(sel){const old=sel.value;sel.innerHTML='<option value="auto">Automatische Nederlandse stem</option><option value="female">Vrouwenstem</option><option value="male">Mannenstem</option>';if(old)sel.value=old;}}
+if('speechSynthesis'in window){refreshVoices();speechSynthesis.onvoiceschanged=refreshVoices;}
+function say(t){if(voiceOn&&'speechSynthesis'in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='nl-NL';const voices=availableVoices.length?availableVoices:speechSynthesis.getVoices();let pool=voices.filter(v=>v.lang?.toLowerCase().startsWith('nl'));if(selectedVoiceGender!=='auto'){const matched=pool.filter(v=>classifyVoice(v)===selectedVoiceGender);if(matched.length)pool=matched;else{$('alert').textContent='Deze Android heeft geen herkenbare '+(selectedVoiceGender==='female'?'vrouwenstem':'mannenstem')+' beschikbaar. Kies automatisch of installeer een Nederlandse stem bij Android Tekst-naar-spraak.';}}if(pool.length)u.voice=pool[0];speechSynthesis.speak(u);}}
 function status(t){$('status').textContent=t;}
 function setSpeed(s){$('speed').textContent=s===null||!Number.isFinite(s)?'--':Math.round(s*3.6);}
-function gpsStart(){
- if(!navigator.geolocation){status('GPS niet beschikbaar');return;}
+async function gpsStart(){
  if(watchId!==null)return;
- status('GPS zoeken…');
- watchId=navigator.geolocation.watchPosition(p=>{
-  current=[p.coords.longitude,p.coords.latitude];setSpeed(p.coords.speed);status('GPS actief');
-  if(!marker){marker=L.marker([current[1],current[0]]).addTo(map).bindPopup('Jouw locatie');map.setView([current[1],current[0]],14);}
-  else marker.setLatLng([current[1],current[0]]);
-  updateNavigation();cameraProximity();
- },e=>{status('GPS-fout: '+e.message);$('alert').textContent='Locatie niet beschikbaar. Controleer locatietoestemming en GPS.';},{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
+ status('GPS zoeken…');$('alert').textContent='Android-locatie wordt opgevraagd. Sta locatietoegang toe.';
+ const onPosition=p=>{current=[p.coords.longitude,p.coords.latitude];setSpeed(p.coords.speed);status('GPS actief · nauwkeurigheid '+Math.round(p.coords.accuracy||0)+' m');if(!marker){marker=L.marker([current[1],current[0]]).addTo(map).bindPopup('Jouw GPS-locatie');map.setView([current[1],current[0]],15);}else marker.setLatLng([current[1],current[0]]);updateNavigation();cameraProximity();};
+ const onError=e=>{status('GPS-fout: '+(e.message||e));$('alert').textContent='GPS niet beschikbaar. Controleer Android-locatie, app-toestemming en zet Nauwkeurige locatie aan.';};
+ try{
+  if(Capacitor.isNativePlatform()){
+   let perm=await Geolocation.checkPermissions();if(perm.location!=='granted'&&perm.coarseLocation!=='granted')perm=await Geolocation.requestPermissions();
+   if(perm.location!=='granted'&&perm.coarseLocation!=='granted')throw Error('Locatietoestemming geweigerd. Geef Motor Navigatie toestemming via Android Instellingen.');
+   const p=await Geolocation.getCurrentPosition({enableHighAccuracy:true,timeout:20000,maximumAge:0});onPosition(p);
+   watchId=await Geolocation.watchPosition({enableHighAccuracy:true,timeout:20000,maximumAge:1000},(p,e)=>{if(e)onError(e);else if(p)onPosition(p);});
+  }else{
+   if(!navigator.geolocation)throw Error('GPS niet beschikbaar in deze browser.');
+   navigator.geolocation.getCurrentPosition(onPosition,onError,{enableHighAccuracy:true,maximumAge:0,timeout:20000});
+   watchId=navigator.geolocation.watchPosition(onPosition,onError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
+  }
+ }catch(e){onError(e);}
 }
-function waitForGPS(ms=20000){return new Promise((resolve,reject)=>{if(current)return resolve(current);gpsStart();const started=Date.now();const timer=setInterval(()=>{if(current){clearInterval(timer);resolve(current);}else if(Date.now()-started>=ms){clearInterval(timer);reject(Error('GPS heeft geen locatie gevonden. Controleer Android-locatietoestemming of vul een vertrekadres in.'));}},250);});}
-function stop(){if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;if(routeLayer){map.removeLayer(routeLayer);routeLayer=null;}routeCoords=[];routeSteps=[];$('instruction').textContent='Navigatie gestopt.';$('details').textContent='Afstand: -- · Reistijd: --';}
+function waitForGPS(ms=30000){return new Promise((resolve,reject)=>{if(current)return resolve(current);gpsStart();const started=Date.now();const timer=setInterval(()=>{if(current){clearInterval(timer);resolve(current);}else if(Date.now()-started>=ms){clearInterval(timer);reject(Error('GPS heeft geen locatie gevonden. Controleer Android-locatietoestemming en Nauwkeurige locatie, of vul een vertrekadres in.'));}},250);});}
+function stop(){if(watchId!==null){if(Capacitor.isNativePlatform())Geolocation.clearWatch({id:watchId}).catch(()=>{});else navigator.geolocation.clearWatch(watchId);}watchId=null;if(routeLayer){map.removeLayer(routeLayer);routeLayer=null;}routeCoords=[];routeSteps=[];$('instruction').textContent='Navigatie gestopt.';$('details').textContent='Afstand: -- · Reistijd: --';}
 async function geocode(q){
  const u='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=nl,be,lu&q='+encodeURIComponent(q);
  const r=await fetch(u,{headers:{'Accept-Language':'nl'}});if(!r.ok)throw Error('Adres zoeken lukt nu niet. Probeer opnieuw.');const a=await r.json();if(!a.length)throw Error('Bestemming niet gevonden in Nederland, België of Luxemburg.');return [Number(a[0].lon),Number(a[0].lat)];
@@ -69,9 +82,9 @@ async function loadFuelStations(){
 }
 function cameraProximity(){if(!current||!cameras.length)return;let dist=Infinity;cameras.forEach(c=>{const d=map.distance([current[1],current[0]],[c.lat,c.lon]);if(d<dist)dist=d;});if(dist<500&&Date.now()-lastCameraAlert>45000){lastCameraAlert=Date.now();$('alert').textContent='Mogelijke flitscamera binnen '+Math.round(dist)+' meter';say('Let op. Mogelijke flitscamera.');}}
 $('go').onclick=()=>getRoute('fast');$('fast').onclick=()=>getRoute('fast');$('scenic').onclick=()=>getRoute('scenic');$('gps').onclick=()=>{gpsStart();if(current)map.setView([current[1],current[0]],14);};$('stop').onclick=stop;$('fuel').onclick=loadFuelStations;
-$('voice').onclick=()=>{voiceOn=!voiceOn;$('voice').textContent=voiceOn?'🔊 STEM AAN':'🔇 STEM UIT';if(voiceOn)say('Stem ingeschakeld');};
+$('voice').onclick=()=>{voiceOn=!voiceOn;$('voice').textContent=voiceOn?'🔊 STEM AAN':'🔇 STEM UIT';if(voiceOn)say('Stem ingeschakeld');};\n$('voiceGender').onchange=e=>{selectedVoiceGender=e.target.value;const label=selectedVoiceGender==='female'?'vrouwenstem':selectedVoiceGender==='male'?'mannenstem':'automatische Nederlandse stem';$('alert').textContent='Stemkeuze: '+label+'.';say('Dit is een test van de gekozen stem.');};
 $('theme').onclick=()=>{document.body.classList.toggle('light');const light=document.body.classList.contains('light');document.body.style.background=light?'#edf2f5':'#101820';document.body.style.color=light?'#101820':'#fff';$('theme').textContent=light?'☀️ DAG':'🌙 NACHT';};
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-window.addEventListener('load',()=>setTimeout(()=>map.invalidateSize(),300));
+window.addEventListener('load',()=>{refreshVoices();setTimeout(()=>map.invalidateSize(),300);});
 
 // Buildcontrole: wijziging om de Android APK-workflow op GitHub te starten.
