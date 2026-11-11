@@ -1,0 +1,8 @@
+{
+  "appId": "nl.motornavigatie.benelux",
+  "appName": "Motor Navigatie Benelux",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
