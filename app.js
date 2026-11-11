@@ -86,6 +86,6 @@ $('voice').onclick=()=>{voiceOn=!voiceOn;$('voice').textContent=voiceOn?'🔊 ST
 $('voiceGender').onchange=e=>{selectedVoiceGender=e.target.value;const label=selectedVoiceGender==='female'?'vrouwenstem':selectedVoiceGender==='male'?'mannenstem':'automatische Nederlandse stem';$('alert').textContent='Stemkeuze: '+label+'.';say('Dit is een test van de gekozen stem.');};
 $('theme').onclick=()=>{document.body.classList.toggle('light');const light=document.body.classList.contains('light');document.body.style.background=light?'#edf2f5':'#101820';document.body.style.color=light?'#101820':'#fff';$('theme').textContent=light?'☀️ DAG':'🌙 NACHT';};
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-window.addEventListener('load',()=>{refreshVoices();setTimeout(()=>map.invalidateSize(),300);});
+window.addEventListener('load',()=>{refreshVoices();setTimeout(()=>map.invalidateSize(),300);gpsStart();});
 
 // Buildcontrole: wijziging om de Android APK-workflow op GitHub te starten.
