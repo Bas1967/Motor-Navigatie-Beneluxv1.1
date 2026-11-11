@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#101820">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<title>Motor Navigatie Benelux</title>
+<style>
+:root{--bg:#101820;--panel:#1b2935;--green:#18a66a;--blue:#1677d2;--white:#fff;--muted:#b8c7d2;--red:#d94343}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--white);font-family:Arial,sans-serif}
+header{padding:10px 14px;display:flex;justify-content:space-between;align-items:center;background:#0b1218;font-weight:800;font-size:20px}
+#status{font-size:12px;color:#b8c7d2;font-weight:500}
+main{display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:10px;padding:10px;height:calc(100dvh - 54px)}
+.panel{background:var(--panel);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.speed{text-align:center;background:#0b1218;border-radius:14px;padding:8px}
+.speed small{color:var(--muted);font-size:14px;font-weight:bold;letter-spacing:1px}
+#speed{font-size:76px;line-height:1.05;font-weight:900;font-variant-numeric:tabular-nums}
+#speedUnit{font-size:22px;color:var(--muted)}
+input{width:100%;padding:16px;border-radius:10px;border:2px solid #526474;font-size:18px;background:#fff;color:#111}
+button{border:0;border-radius:12px;padding:17px 10px;font-size:18px;font-weight:800;color:white;background:var(--blue);min-height:58px}
+button:active{filter:brightness(.8);transform:scale(.99)}
+button.green{background:var(--green)}button.gray{background:#425363}button.red{background:#a83232}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#map{height:100%;min-height:380px;border-radius:14px;overflow:hidden}
+#instruction{font-size:17px;line-height:1.35;background:#0b1218;padding:12px;border-radius:10px;min-height:55px}
+#details{font-size:14px;color:var(--muted);line-height:1.5}
+#alert{font-weight:800;color:#ffcf55;min-height:20px}
+label{font-size:13px;color:var(--muted)}
+.leaflet-control-attribution{font-size:9px!important}
+@media(max-width:760px){main{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:auto;min-height:calc(100dvh - 54px)}#map{height:48vh;min-height:300px;grid-row:1}.panel{grid-row:2}.speed{display:flex;align-items:center;justify-content:center;gap:14px}.speed small{max-width:75px}#speed{font-size:64px}}
+</style>
+</head>
+<body>
+<header><span>🏍️ MOTOR NAVIGATIE BENELUX</span><span id="status">GPS niet gestart</span></header>
+<main>
+<section class="panel">
+ <div class="speed"><small>HUIDIGE SNELHEID</small><div><span id="speed">--</span> <span id="speedUnit">km/u</span></div></div>
+ <div id="alert" aria-live="assertive">Rijd veilig. Bedien de app alleen wanneer je stilstaat.</div>
+ <div><label for="from">VAN (optioneel: huidige GPS-locatie)</label><input id="from" placeholder="Huidige locatie" autocomplete="off"></div>
+ <div><label for="to">NAAR</label><input id="to" placeholder="Plaats, adres of postcode" autocomplete="off"></div>
+ <button class="green" id="go">START NAVIGATIE</button>
+ <div class="row"><button id="fast">⚡ SNELSTE</button><button id="scenic" class="gray">🌄 MOOIERE ROUTE</button></div>
+ <button id="fuel" class="gray">⛽ TOON TANKSTATIONS</button>
+ <div id="instruction">Vul een bestemming in en druk op START NAVIGATIE.</div>
+ <div id="details">Afstand: -- · Reistijd: --</div>
+ <div class="row"><button id="gps" class="gray">📍 MIJN GPS</button><button id="stop" class="red">STOP ROUTE</button></div>
+ <div class="row"><button id="voice" class="gray">🔊 STEM AAN</button><button id="theme" class="gray">🌙 NACHT</button></div>
+ <div id="cameraInfo" style="font-size:12px;color:#b8c7d2">Flitscamera-waarschuwingen: gegevens worden opgehaald wanneer mogelijk.</div>
+ <div style="font-size:11px;color:#91a2af">Kaart: © OpenStreetMap-bijdragers · Route: OSRM-demodienst · Camera's: OpenStreetMap. Internet nodig voor kaart, zoeken en routes.</div>
+</section>
+<div id="map"></div>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+</body></html>
