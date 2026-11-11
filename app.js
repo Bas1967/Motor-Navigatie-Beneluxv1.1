@@ -18,14 +18,24 @@ async function gpsStart(){
  const onError=e=>{status('GPS-fout: '+(e.message||e));$('alert').textContent='GPS niet beschikbaar. Controleer Android-locatie, app-toestemming en zet Nauwkeurige locatie aan.';};
  try{
   if(Capacitor.isNativePlatform()){
-   let perm=await Geolocation.checkPermissions();if(perm.location!=='granted'&&perm.coarseLocation!=='granted')perm=await Geolocation.requestPermissions();
-   if(perm.location!=='granted'&&perm.coarseLocation!=='granted')throw Error('Locatietoestemming geweigerd. Geef Motor Navigatie toestemming via Android Instellingen.');
-   const p=await Geolocation.getCurrentPosition({enableHighAccuracy:true,timeout:20000,maximumAge:0});onPosition(p);
-   watchId=await Geolocation.watchPosition({enableHighAccuracy:true,timeout:20000,maximumAge:1000},(p,e)=>{if(e)onError(e);else if(p)onPosition(p);});
+   try {
+    let perm=await Geolocation.checkPermissions();
+    if(perm.location!=='granted'&&perm.coarseLocation!=='granted')perm=await Geolocation.requestPermissions();
+    if(perm.location!=='granted'&&perm.coarseLocation!=='granted')throw Error('Android heeft locatietoestemming geweigerd. Controleer App-info > Machtigingen > Locatie.');
+    const p=await Geolocation.getCurrentPosition({enableHighAccuracy:true,timeout:25000,maximumAge:0});onPosition(p);
+    watchId=await Geolocation.watchPosition({enableHighAccuracy:true,timeout:25000,maximumAge:1000},(p,e)=>{if(e)onError(e);else if(p)onPosition(p);});
+   } catch(nativeError) {
+    $('alert').textContent='Native GPS niet beschikbaar; probeer Android-browserlocatie…';
+    if(!navigator.geolocation)throw nativeError;
+    const p=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:25000,maximumAge:0}));
+    onPosition(p);
+    watchId=navigator.geolocation.watchPosition(onPosition,onError,{enableHighAccuracy:true,maximumAge:1000,timeout:25000});
+   }
   }else{
    if(!navigator.geolocation)throw Error('GPS niet beschikbaar in deze browser.');
-   navigator.geolocation.getCurrentPosition(onPosition,onError,{enableHighAccuracy:true,maximumAge:0,timeout:20000});
-   watchId=navigator.geolocation.watchPosition(onPosition,onError,{enableHighAccuracy:true,maximumAge:1000,timeout:20000});
+   const p=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,maximumAge:0,timeout:25000}));
+   onPosition(p);
+   watchId=navigator.geolocation.watchPosition(onPosition,onError,{enableHighAccuracy:true,maximumAge:1000,timeout:25000});
   }
  }catch(e){onError(e);}
 }
@@ -81,11 +91,11 @@ async function loadFuelStations(){
  try{const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)});if(!r.ok)throw Error();const d=await r.json();fuelStations=d.elements||[];fuelMarkers=[];fuelStations.forEach(s=>{const y=s.lat??s.center?.lat,x=s.lon??s.center?.lon;if(y==null||x==null)return;const name=s.tags?.name||s.tags?.brand||'Tankstation';fuelMarkers.push(L.marker([y,x]).addTo(map).bindPopup('<b>⛽ '+name+'</b><br><small>Brandstofprijzen niet beschikbaar in deze kaartbron.</small>'));});fuelVisible=true;$('fuel').textContent='⛽ VERBERG TANKSTATIONS';$('cameraInfo').textContent=fuelStations.length+' tankstations gevonden in de omgeving. Prijzen worden niet getoond.';}catch{$('fuel').textContent='⛽ OPNIEUW PROBEREN';$('cameraInfo').textContent='Tankstations tijdelijk niet beschikbaar.';}
 }
 function cameraProximity(){if(!current||!cameras.length)return;let dist=Infinity;cameras.forEach(c=>{const d=map.distance([current[1],current[0]],[c.lat,c.lon]);if(d<dist)dist=d;});if(dist<500&&Date.now()-lastCameraAlert>45000){lastCameraAlert=Date.now();$('alert').textContent='Mogelijke flitscamera binnen '+Math.round(dist)+' meter';say('Let op. Mogelijke flitscamera.');}}
-$('go').onclick=()=>getRoute('fast');$('fast').onclick=()=>getRoute('fast');$('scenic').onclick=()=>getRoute('scenic');$('gps').onclick=()=>{gpsStart();if(current)map.setView([current[1],current[0]],14);};$('stop').onclick=stop;$('fuel').onclick=loadFuelStations;
+$('go').onclick=()=>getRoute('fast');$('fast').onclick=()=>getRoute('fast');$('scenic').onclick=()=>getRoute('scenic');$('gps').onclick=async()=>{ $('gps').disabled=true; $('gps').textContent='GPS ZOEKEN…'; try{await gpsStart();if(current)map.setView([current[1],current[0]],15);}finally{$('gps').disabled=false;$('gps').textContent='📍 MIJN GPS';}};$('stop').onclick=stop;$('fuel').onclick=loadFuelStations;
 $('voice').onclick=()=>{voiceOn=!voiceOn;$('voice').textContent=voiceOn?'🔊 STEM AAN':'🔇 STEM UIT';if(voiceOn)say('Stem ingeschakeld');};
 $('voiceGender').onchange=e=>{selectedVoiceGender=e.target.value;const label=selectedVoiceGender==='female'?'vrouwenstem':selectedVoiceGender==='male'?'mannenstem':'automatische Nederlandse stem';$('alert').textContent='Stemkeuze: '+label+'.';say('Dit is een test van de gekozen stem.');};
 $('theme').onclick=()=>{document.body.classList.toggle('light');const light=document.body.classList.contains('light');document.body.style.background=light?'#edf2f5':'#101820';document.body.style.color=light?'#101820':'#fff';$('theme').textContent=light?'☀️ DAG':'🌙 NACHT';};
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-window.addEventListener('load',()=>{refreshVoices();setTimeout(()=>map.invalidateSize(),300);gpsStart();});
+window.addEventListener('load',()=>{refreshVoices();setTimeout(()=>map.invalidateSize(),300);status('Druk op MIJN GPS om locatie toe te staan.');});
 
 // Buildcontrole: wijziging om de Android APK-workflow op GitHub te starten.
