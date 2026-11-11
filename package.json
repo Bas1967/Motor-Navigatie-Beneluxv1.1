@@ -4,7 +4,7 @@
   "private": true,
   "description": "Gratis Android motor navigatie Benelux",
   "scripts": {
-    "build": "node -e \"const fs=require('fs');fs.rmSync('www',{recursive:true,force:true});fs.mkdirSync('www',{recursive:true});for(const f of ['index.html','app.js','manifest.webmanifest','icon.svg'])fs.copyFileSync(f,'www/'+f);console.log('Webbestanden gekopieerd naar www/')\"",
+    "build": "node -e \"const fs=require('fs');fs.rmSync('www',{recursive:true,force:true});fs.mkdirSync('www',{recursive:true});for(const f of ['index.html','manifest.webmanifest','icon.svg'])fs.copyFileSync(f,'www/'+f);\" && esbuild app.js --bundle --format=esm --outfile=www/app.js",
     "web": "npx http-server www",
     "android:add": "npx cap add android",
     "android:sync": "npx cap sync android",
@@ -12,10 +12,12 @@
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
-    "@capacitor/core": "^7.4.3"
+    "@capacitor/core": "^7.4.3",
+    "@capacitor/geolocation": "^7.1.5"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3",
-    "http-server": "^14.1.1"
+    "http-server": "^14.1.1",
+    "esbuild": "^0.25.5"
   }
 }
