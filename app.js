@@ -73,3 +73,5 @@ $('voice').onclick=()=>{voiceOn=!voiceOn;$('voice').textContent=voiceOn?'🔊 ST
 $('theme').onclick=()=>{document.body.classList.toggle('light');const light=document.body.classList.contains('light');document.body.style.background=light?'#edf2f5':'#101820';document.body.style.color=light?'#101820':'#fff';$('theme').textContent=light?'☀️ DAG':'🌙 NACHT';};
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 window.addEventListener('load',()=>setTimeout(()=>map.invalidateSize(),300));
+
+// Buildcontrole: wijziging om de Android APK-workflow op GitHub te starten.
